@@ -1,0 +1,366 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background: #0a0a0a;
+    color: #e0e0e0;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.header h1 {
+    font-size: 28px;
+    background: linear-gradient(135deg, #fff, #e94560);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.header code {
+    background: #1a1a1a;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+}
+
+.repo-link a {
+    color: #e94560;
+    text-decoration: none;
+}
+
+.mode-toggle {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+    justify-content: center;
+}
+
+.mode-btn {
+    padding: 10px 24px;
+    background: #1a1a1a;
+    border: none;
+    border-radius: 30px;
+    color: #888;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.mode-btn.active {
+    background: #e94560;
+    color: white;
+}
+
+.list-container {
+    background: #111;
+    border-radius: 16px;
+    padding: 20px;
+    border: 1px solid #1a1a1a;
+}
+
+.search-bar {
+    margin-bottom: 20px;
+}
+
+.search-bar input {
+    width: 100%;
+    padding: 12px 16px;
+    background: #1a1a1a;
+    border: 1px solid #222;
+    border-radius: 30px;
+    color: white;
+    font-size: 14px;
+}
+
+.anime-list-admin {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.anime-card-admin {
+    background: #0f0f0f;
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid #1a1a1a;
+}
+
+.anime-card-left {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.anime-card-img {
+    width: 60px;
+    height: 85px;
+    border-radius: 8px;
+    object-fit: cover;
+}
+
+.anime-card-info h3 {
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+
+.anime-card-info p {
+    font-size: 11px;
+    color: #888;
+}
+
+.anime-genre {
+    color: #e94560 !important;
+}
+
+.anime-card-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.edit-btn, .delete-btn {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.edit-btn {
+    background: #1a1a2e;
+    color: #f9ca24;
+}
+
+.delete-btn {
+    background: rgba(233, 69, 96, 0.2);
+    color: #e94560;
+}
+
+.form-container {
+    background: #111;
+    border-radius: 16px;
+    padding: 24px;
+    border: 1px solid #1a1a1a;
+}
+
+.form-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.form-section {
+    margin-bottom: 24px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid #1a1a1a;
+}
+
+.form-section h3 {
+    font-size: 16px;
+    margin-bottom: 16px;
+    color: #e94560;
+}
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 6px;
+    color: #aaa;
+}
+
+.form-group input, .form-group textarea, .form-group select {
+    width: 100%;
+    padding: 10px 12px;
+    background: #1a1a1a;
+    border: 1px solid #222;
+    border-radius: 8px;
+    color: white;
+    font-size: 14px;
+    font-family: inherit;
+}
+
+.form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+    outline: none;
+    border-color: #e94560;
+}
+
+.form-group small {
+    font-size: 11px;
+    color: #666;
+    display: block;
+    margin-top: 4px;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.episode-item {
+    background: #0f0f0f;
+    padding: 16px;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    border: 1px solid #1a1a1a;
+}
+
+.episode-item h4 {
+    font-size: 14px;
+    margin-bottom: 12px;
+    color: #e94560;
+}
+
+.btn-primary, .btn-secondary {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #e94560, #ff6b6b);
+    color: white;
+}
+
+.btn-primary:hover {
+    transform: scale(1.02);
+}
+
+.btn-secondary {
+    background: #1a1a1a;
+    color: #e0e0e0;
+    border: 1px solid #333;
+}
+
+.btn-secondary:hover {
+    background: #252525;
+}
+
+.form-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 20px;
+}
+
+.message {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    display: none;
+    z-index: 100;
+}
+
+.message.success {
+    background: #00b894;
+    color: white;
+    display: block;
+}
+
+.message.error {
+    background: #e94560;
+    color: white;
+    display: block;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.8);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background: #111;
+    border-radius: 16px;
+    padding: 24px;
+    max-width: 700px;
+    width: 90%;
+    max-height: 80vh;
+    overflow: auto;
+    position: relative;
+}
+
+.modal-content pre {
+    background: #0a0a0a;
+    padding: 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-size: 12px;
+    color: #e0e0e0;
+}
+
+.close {
+    position: absolute;
+    top: 16px;
+    right: 20px;
+    font-size: 24px;
+    cursor: pointer;
+    color: #888;
+}
+
+.close:hover {
+    color: #e94560;
+}
+
+.loading {
+    text-align: center;
+    padding: 40px;
+    color: #888;
+}
+
+@media (max-width: 600px) {
+    .form-row {
+        grid-template-columns: 1fr;
+        gap: 0;
+    }
+    
+    .container {
+        padding: 10px;
+    }
+    
+    .anime-card-admin {
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .anime-card-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+}
