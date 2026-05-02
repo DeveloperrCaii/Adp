@@ -17,31 +17,39 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../public')));
 
-// Konfigurasi GitHub
+// ========== KONFIGURASI 2 REPOSITORY BERBEDA ==========
+// Repository 1: DbAnime (untuk all-anime.json)
+const ANIME_REPO = process.env.ANIME_REPO || 'DeveloperrCaii/DbAnime';
+const ANIME_FILE_PATH = process.env.ANIME_FILE_PATH || 'all-anime.json';
+const ANIME_API_URL = `https://api.github.com/repos/${ANIME_REPO}/contents/${ANIME_FILE_PATH}`;
+
+// Repository 2: Streaming (untuk maintenance.json - SAMA dengan admin panel)
+const MAINTENANCE_REPO = process.env.MAINTENANCE_REPO || 'DeveloperrCaii/Streaming';
+const MAINTENANCE_FILE_PATH = process.env.MAINTENANCE_FILE_PATH || 'frontend/data/maintenance.json';
+const MAINTENANCE_API_URL = `https://api.github.com/repos/${MAINTENANCE_REPO}/contents/${MAINTENANCE_FILE_PATH}`;
+
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-const REPO = process.env.GITHUB_REPO;
-const FILE_PATH = process.env.GITHUB_FILE_PATH;
-const API_URL = `https://api.github.com/repos/${REPO}/contents/${FILE_PATH}`;
-const MAINTENANCE_JSON_URL = `https://api.github.com/repos/${REPO}/contents/frontend/data/maintenance.json`;
 
 const githubHeaders = {
     Authorization: `Bearer ${GITHUB_TOKEN}`,
     Accept: 'application/vnd.github.v3+json'
 };
 
-async function getCurrentFile() {
+// ========== FUNCTIONS FOR ALL-ANIME (Repository DbAnime) ==========
+async function getAnimeFile() {
     try {
-        const res = await axios.get(API_URL, { headers: githubHeaders });
+        const res = await axios.get(ANIME_API_URL, { headers: githubHeaders });
         return {
             content: Buffer.from(res.data.content, 'base64').toString('utf8'),
             sha: res.data.sha
         };
     } catch (err) {
-        throw new Error('Gagal mengambil data dari GitHub');
+        console.error('Gagal ambil all-anime.json dari DbAnime:', err.message);
+        throw new Error('Gagal mengambil data anime dari repository DbAnime');
     }
 }
 
-async function updateFile(content, sha, commitMessage) {
+async function updateAnimeFile(content, sha, commitMessage) {
     const updatedContent = Buffer.from(content, 'utf8').toString('base64');
     const payload = {
         message: commitMessage,
@@ -49,35 +57,42 @@ async function updateFile(content, sha, commitMessage) {
         sha: sha,
         branch: 'main'
     };
-    const res = await axios.put(API_URL, payload, { headers: githubHeaders });
+    const res = await axios.put(ANIME_API_URL, payload, { headers: githubHeaders });
     return res.data;
 }
 
-async function getMaintenanceData() {
+// ========== FUNCTIONS FOR MAINTENANCE (Repository Streaming - SAMA dengan admin panel) ==========
+async function getMaintenanceFile() {
     try {
-        const res = await axios.get(MAINTENANCE_JSON_URL, { headers: githubHeaders });
+        const res = await axios.get(MAINTENANCE_API_URL, { headers: githubHeaders });
         const content = Buffer.from(res.data.content, 'base64').toString('utf8');
         const json = JSON.parse(content);
         return { data: json, sha: res.data.sha };
     } catch (err) {
-        return { data: { maintenance_mode: false, access_code: 'REU2024' }, sha: null };
+        // Jika file belum ada, buat default
+        const defaultData = { maintenance_mode: false, access_code: 'LanzAdminAnime' };
+        return { data: defaultData, sha: null };
     }
 }
 
-async function setMaintenanceData(data, sha) {
+async function updateMaintenanceFile(data, sha) {
     const content = Buffer.from(JSON.stringify(data, null, 2), 'utf8').toString('base64');
-    await axios.put(MAINTENANCE_JSON_URL, {
-        message: `Update maintenance data`,
+    const payload = {
+        message: 'Update maintenance data',
         content: content,
-        sha: sha,
         branch: 'main'
-    }, { headers: githubHeaders });
+    };
+    if (sha) payload.sha = sha;
+    const res = await axios.put(MAINTENANCE_API_URL, payload, { headers: githubHeaders });
+    return res.data;
 }
+
+// ========== ENDPOINTS FOR ALL-ANIME (ke DbAnime repo) ==========
 
 // GET semua anime
 app.get('/api/anime', async (req, res) => {
     try {
-        const { content } = await getCurrentFile();
+        const { content } = await getAnimeFile();
         res.json(JSON.parse(content));
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -87,7 +102,7 @@ app.get('/api/anime', async (req, res) => {
 // GET anime by ID
 app.get('/api/anime/:id', async (req, res) => {
     try {
-        const { content } = await getCurrentFile();
+        const { content } = await getAnimeFile();
         const animeList = JSON.parse(content);
         const anime = animeList.find(a => a.id === req.params.id);
         if (!anime) return res.status(404).json({ error: 'Anime tidak ditemukan' });
@@ -113,14 +128,14 @@ app.post('/api/anime', async (req, res) => {
         if (!newAnime.scheduleStatus || newAnime.scheduleStatus === '') delete newAnime.scheduleStatus;
         if (newAnime.isTrending === undefined) newAnime.isTrending = false;
         
-        const { content, sha } = await getCurrentFile();
+        const { content, sha } = await getAnimeFile();
         let animeList = JSON.parse(content);
         
         const maxId = Math.max(...animeList.map(a => parseInt(a.id)), 0);
         newAnime.id = (maxId + 1).toString();
         
         animeList.push(newAnime);
-        await updateFile(JSON.stringify(animeList, null, 2), sha, `Add anime: ${newAnime.title}`);
+        await updateAnimeFile(JSON.stringify(animeList, null, 2), sha, `Add anime: ${newAnime.title}`);
         
         res.json({ success: true, id: newAnime.id, message: 'Anime berhasil ditambahkan' });
     } catch (err) {
@@ -145,7 +160,7 @@ app.put('/api/anime/:id', async (req, res) => {
         if (!updatedAnime.scheduleStatus || updatedAnime.scheduleStatus === '') delete updatedAnime.scheduleStatus;
         if (updatedAnime.isTrending === undefined) updatedAnime.isTrending = false;
         
-        const { content, sha } = await getCurrentFile();
+        const { content, sha } = await getAnimeFile();
         let animeList = JSON.parse(content);
         
         const index = animeList.findIndex(a => a.id === animeId);
@@ -154,7 +169,7 @@ app.put('/api/anime/:id', async (req, res) => {
         updatedAnime.id = animeId;
         animeList[index] = updatedAnime;
         
-        await updateFile(JSON.stringify(animeList, null, 2), sha, `Edit anime: ${updatedAnime.title}`);
+        await updateAnimeFile(JSON.stringify(animeList, null, 2), sha, `Edit anime: ${updatedAnime.title}`);
         res.json({ success: true, message: 'Anime berhasil diupdate' });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -165,26 +180,26 @@ app.put('/api/anime/:id', async (req, res) => {
 app.delete('/api/anime/:id', async (req, res) => {
     try {
         const animeId = req.params.id;
-        const { content, sha } = await getCurrentFile();
+        const { content, sha } = await getAnimeFile();
         let animeList = JSON.parse(content);
         
         const deletedAnime = animeList.find(a => a.id === animeId);
         if (!deletedAnime) return res.status(404).json({ error: 'Anime tidak ditemukan' });
         
         const newAnimeList = animeList.filter(a => a.id !== animeId);
-        await updateFile(JSON.stringify(newAnimeList, null, 2), sha, `Delete anime: ${deletedAnime.title}`);
+        await updateAnimeFile(JSON.stringify(newAnimeList, null, 2), sha, `Delete anime: ${deletedAnime.title}`);
         res.json({ success: true, message: 'Anime berhasil dihapus' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// ========== MAINTENANCE MODE ENDPOINTS ==========
+// ========== MAINTENANCE MODE ENDPOINTS (ke Streaming repo - SAMA dengan admin panel) ==========
 
 // GET status maintenance
 app.get('/api/maintenance/status', async (req, res) => {
     try {
-        const { data } = await getMaintenanceData();
+        const { data } = await getMaintenanceFile();
         res.json({ 
             maintenance_mode: data.maintenance_mode,
             access_code_exists: !!data.access_code
@@ -198,14 +213,14 @@ app.get('/api/maintenance/status', async (req, res) => {
 app.post('/api/maintenance/toggle', async (req, res) => {
     try {
         const { action, accessCode } = req.body;
-        const { data, sha } = await getMaintenanceData();
+        const { data, sha } = await getMaintenanceFile();
         
         if (accessCode !== data.access_code) {
             return res.status(401).json({ error: 'Kode akses salah' });
         }
         
         data.maintenance_mode = (action === 'on');
-        await setMaintenanceData(data, sha);
+        await updateMaintenanceFile(data, sha);
         
         res.json({ success: true, maintenance_mode: data.maintenance_mode });
     } catch (err) {
@@ -217,7 +232,7 @@ app.post('/api/maintenance/toggle', async (req, res) => {
 app.post('/api/maintenance/update-code', async (req, res) => {
     try {
         const { oldCode, newCode } = req.body;
-        const { data, sha } = await getMaintenanceData();
+        const { data, sha } = await getMaintenanceFile();
         
         if (oldCode !== data.access_code) {
             return res.status(401).json({ error: 'Kode akses lama salah' });
@@ -228,7 +243,7 @@ app.post('/api/maintenance/update-code', async (req, res) => {
         }
         
         data.access_code = newCode;
-        await setMaintenanceData(data, sha);
+        await updateMaintenanceFile(data, sha);
         
         res.json({ success: true, message: 'Kode akses berhasil diubah' });
     } catch (err) {
