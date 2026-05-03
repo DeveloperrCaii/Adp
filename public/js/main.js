@@ -1,6 +1,7 @@
 let episodeCount = 1;
 let isEditMode = false;
 let editingId = null;
+let allAnimeData = [];
 
 const listMode = document.getElementById('listMode');
 const formMode = document.getElementById('formMode');
@@ -18,7 +19,10 @@ const previewModal = document.getElementById('previewModal');
 const closeModal = document.querySelector('.close');
 const messageDiv = document.getElementById('message');
 const searchInput = document.getElementById('searchAnime');
+const statusFilter = document.getElementById('statusFilter');
+const sortFilter = document.getElementById('sortFilter');
 const animeListDiv = document.getElementById('animeList');
+const statsInfo = document.getElementById('statsInfo');
 
 listModeBtn.addEventListener('click', () => {
     listModeBtn.classList.add('active');
@@ -86,27 +90,91 @@ async function loadAnimeList() {
     animeListDiv.innerHTML = '<div class="loading">Memuat...</div>';
     try {
         const res = await fetch('/api/anime');
-        const animeList = await res.json();
-        renderAnimeList(animeList);
+        allAnimeData = await res.json();
+        applyFiltersAndSort();
     } catch (err) {
         animeListDiv.innerHTML = '<div class="loading">Gagal memuat data</div>';
     }
 }
 
+function getStatusText(anime) {
+    if (!anime.scheduleDay || anime.scheduleDay === '') {
+        return { text: 'Tamat', class: 'status-tamat' };
+    }
+    if (anime.scheduleStatus === 'Menunggu Update') {
+        return { text: '⏳ Menunggu Update', class: 'status-waiting' };
+    }
+    return { text: '✅ Sudah Tayang', class: 'status-tayang' };
+}
+
+function applyFiltersAndSort() {
+    let filtered = [...allAnimeData];
+    
+    // Filter search
+    const searchQuery = searchInput?.value.toLowerCase() || '';
+    if (searchQuery) {
+        filtered = filtered.filter(anime => anime.title.toLowerCase().includes(searchQuery));
+    }
+    
+    // Filter status
+    const statusValue = statusFilter?.value || 'all';
+    if (statusValue !== 'all') {
+        if (statusValue === 'tamat') {
+            filtered = filtered.filter(anime => !anime.scheduleDay || anime.scheduleDay === '');
+        } else {
+            filtered = filtered.filter(anime => anime.scheduleStatus === statusValue);
+        }
+    }
+    
+    // Sort
+    const sortValue = sortFilter?.value || 'az';
+    if (sortValue === 'az') {
+        filtered.sort((a, b) => a.title.localeCompare(b.title));
+    } else if (sortValue === 'za') {
+        filtered.sort((a, b) => b.title.localeCompare(a.title));
+    } else if (sortValue === 'terbaru') {
+        filtered.sort((a, b) => new Date(b.uploadDate) - new Date(a.uploadDate));
+    } else if (sortValue === 'terlama') {
+        filtered.sort((a, b) => new Date(a.uploadDate) - new Date(b.uploadDate));
+    }
+    
+    // Update stats
+    const totalAnime = allAnimeData.length;
+    const tamatCount = allAnimeData.filter(a => !a.scheduleDay || a.scheduleDay === '').length;
+    const tayangCount = allAnimeData.filter(a => a.scheduleStatus === 'Sudah Tayang' && a.scheduleDay).length;
+    const waitingCount = allAnimeData.filter(a => a.scheduleStatus === 'Menunggu Update' && a.scheduleDay).length;
+    
+    statsInfo.innerHTML = `
+        <span>📺 Total Anime: <span>${totalAnime}</span></span>
+        <span>✅ Sudah Tayang: <span>${tayangCount}</span></span>
+        <span>⏳ Menunggu Update: <span>${waitingCount}</span></span>
+        <span>🏁 Tamat: <span>${tamatCount}</span></span>
+    `;
+    
+    renderAnimeList(filtered);
+}
+
 function renderAnimeList(animeList) {
     if (!animeList || animeList.length === 0) {
-        animeListDiv.innerHTML = '<div class="loading">Belum ada anime</div>';
+        animeListDiv.innerHTML = '<div class="loading">Tidak ada anime ditemukan</div>';
         return;
     }
     
-    animeListDiv.innerHTML = animeList.map(anime => `
+    animeListDiv.innerHTML = animeList.map(anime => {
+        const status = getStatusText(anime);
+        const uploadDate = new Date(anime.uploadDate).toLocaleDateString('id-ID');
+        return `
         <div class="anime-card-admin">
             <div class="anime-card-left">
                 <img src="${anime.cover}" onerror="this.src='https://placehold.co/60x85/1a1a1a/888?text=No+Image'" class="anime-card-img">
                 <div class="anime-card-info">
-                    <h3>${escapeHtml(anime.title)} ${anime.isTrending ? '🔥' : ''}</h3>
+                    <h3>
+                        ${escapeHtml(anime.title)} ${anime.isTrending ? '🔥' : ''}
+                        <span class="status-badge ${status.class}">${status.text}</span>
+                    </h3>
                     <p>⭐ ${anime.rating} | 👁️ ${anime.views} | Eps ${anime.latestEpisode}</p>
-                    <p class="anime-genre">${anime.genre.join(', ')}</p>
+                    <p class="upload-date">📅 Upload: ${uploadDate}</p>
+                    <p class="anime-genre">${anime.genre.slice(0, 3).join(', ')}</p>
                 </div>
             </div>
             <div class="anime-card-actions">
@@ -114,8 +182,13 @@ function renderAnimeList(animeList) {
                 <button class="delete-btn" onclick="deleteAnime('${anime.id}')">🗑️ Hapus</button>
             </div>
         </div>
-    `).join('');
+    `}).join('');
 }
+
+// Event listeners untuk filter
+if (searchInput) searchInput.addEventListener('input', applyFiltersAndSort);
+if (statusFilter) statusFilter.addEventListener('change', applyFiltersAndSort);
+if (sortFilter) sortFilter.addEventListener('change', applyFiltersAndSort);
 
 window.editAnime = async (id) => {
     try {
@@ -253,6 +326,9 @@ function getFormData() {
         }
     });
     
+    const scheduleDay = document.getElementById('scheduleDay').value;
+    const scheduleStatus = document.getElementById('scheduleStatus').value;
+    
     return {
         title: document.getElementById('title').value,
         cover: document.getElementById('cover').value,
@@ -263,8 +339,8 @@ function getFormData() {
         views: document.getElementById('views').value,
         latestEpisode: parseInt(document.getElementById('latestEpisode').value),
         uploadDate: document.getElementById('uploadDate').value,
-        scheduleDay: document.getElementById('scheduleDay').value || "",
-        scheduleStatus: document.getElementById('scheduleStatus').value || "",
+        scheduleDay: scheduleDay || "",
+        scheduleStatus: scheduleStatus || "",
         isTrending: document.getElementById('isTrending').checked,
         episodes: episodes
     };
@@ -329,14 +405,6 @@ form.addEventListener('submit', async (e) => {
         submitBtn.disabled = false;
         submitBtn.innerText = isEditMode ? '✏️ Update Anime' : '✨ Tambah Anime';
     }
-});
-
-searchInput.addEventListener('input', async () => {
-    const query = searchInput.value.toLowerCase();
-    const res = await fetch('/api/anime');
-    let animeList = await res.json();
-    if (query) animeList = animeList.filter(a => a.title.toLowerCase().includes(query));
-    renderAnimeList(animeList);
 });
 
 function showMessage(msg, type) {
