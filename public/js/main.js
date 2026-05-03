@@ -2,7 +2,9 @@ let episodeCount = 1;
 let isEditMode = false;
 let editingId = null;
 let allAnimeData = [];
+let selectedAnimeIds = new Set();
 
+// DOM Elements
 const listMode = document.getElementById('listMode');
 const formMode = document.getElementById('formMode');
 const listModeBtn = document.getElementById('listModeBtn');
@@ -20,16 +22,26 @@ const closeModal = document.querySelector('.close');
 const messageDiv = document.getElementById('message');
 const searchInput = document.getElementById('searchAnime');
 const statusFilter = document.getElementById('statusFilter');
+const dayFilter = document.getElementById('dayFilter');
 const sortFilter = document.getElementById('sortFilter');
 const animeListDiv = document.getElementById('animeList');
 const statsInfo = document.getElementById('statsInfo');
+const bulkBar = document.getElementById('bulkBar');
+const selectedCountSpan = document.getElementById('selectedCount');
+const selectAllBtn = document.getElementById('selectAllBtn');
+const deselectAllBtn = document.getElementById('deselectAllBtn');
+const bulkStatusSelect = document.getElementById('bulkStatusSelect');
+const bulkDaySelect = document.getElementById('bulkDaySelect');
+const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
 
+// ========== MODE SWITCH ==========
 listModeBtn.addEventListener('click', () => {
     listModeBtn.classList.add('active');
     addModeBtn.classList.remove('active');
     listMode.style.display = 'block';
     formMode.style.display = 'none';
     loadAnimeList();
+    clearSelection();
 });
 
 addModeBtn.addEventListener('click', () => {
@@ -42,6 +54,7 @@ addModeBtn.addEventListener('click', () => {
     editingId = null;
     formTitle.innerText = '📝 Tambah Anime Baru';
     cancelEditBtn.style.display = 'none';
+    clearSelection();
 });
 
 cancelEditBtn.addEventListener('click', () => {
@@ -53,6 +66,7 @@ cancelEditBtn.addEventListener('click', () => {
     addModeBtn.click();
 });
 
+// ========== FORM FUNCTIONS ==========
 function resetForm() {
     document.getElementById('title').value = '';
     document.getElementById('cover').value = '';
@@ -86,6 +100,44 @@ function resetForm() {
     episodeCount = 1;
 }
 
+function getFormData() {
+    const genreRaw = document.getElementById('genre').value;
+    const genre = genreRaw.split(',').map(g => g.trim()).filter(g => g);
+    
+    const episodes = [];
+    document.querySelectorAll('.episode-item').forEach((ep, idx) => {
+        const titleInput = ep.querySelector('.episode-title');
+        const urlInput = ep.querySelector('.episode-url');
+        if (titleInput && urlInput && titleInput.value && urlInput.value) {
+            episodes.push({
+                number: idx + 1,
+                title: titleInput.value,
+                videoUrl: urlInput.value
+            });
+        }
+    });
+    
+    const scheduleDay = document.getElementById('scheduleDay').value;
+    const scheduleStatus = document.getElementById('scheduleStatus').value;
+    
+    return {
+        title: document.getElementById('title').value,
+        cover: document.getElementById('cover').value,
+        synopsis: document.getElementById('synopsis').value,
+        genre: genre,
+        studio: document.getElementById('studio').value,
+        rating: parseFloat(document.getElementById('rating').value),
+        views: document.getElementById('views').value,
+        latestEpisode: parseInt(document.getElementById('latestEpisode').value),
+        uploadDate: document.getElementById('uploadDate').value,
+        scheduleDay: scheduleDay || "",
+        scheduleStatus: scheduleStatus || "",
+        isTrending: document.getElementById('isTrending').checked,
+        episodes: episodes
+    };
+}
+
+// ========== LOAD AND DISPLAY ANIME ==========
 async function loadAnimeList() {
     animeListDiv.innerHTML = '<div class="loading">Memuat...</div>';
     try {
@@ -99,12 +151,17 @@ async function loadAnimeList() {
 
 function getStatusText(anime) {
     if (!anime.scheduleDay || anime.scheduleDay === '') {
-        return { text: 'Tamat', class: 'status-tamat' };
+        return { text: '🏁 Tamat', class: 'status-tamat' };
     }
     if (anime.scheduleStatus === 'Menunggu Update') {
         return { text: '⏳ Menunggu Update', class: 'status-waiting' };
     }
     return { text: '✅ Sudah Tayang', class: 'status-tayang' };
+}
+
+function getDayOrder(day) {
+    const days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+    return days.indexOf(day);
 }
 
 function applyFiltersAndSort() {
@@ -126,6 +183,12 @@ function applyFiltersAndSort() {
         }
     }
     
+    // Filter hari
+    const dayValue = dayFilter?.value || 'all';
+    if (dayValue !== 'all') {
+        filtered = filtered.filter(anime => anime.scheduleDay === dayValue);
+    }
+    
     // Sort
     const sortValue = sortFilter?.value || 'az';
     if (sortValue === 'az') {
@@ -136,6 +199,15 @@ function applyFiltersAndSort() {
         filtered.sort((a, b) => new Date(b.uploadDate) - new Date(a.uploadDate));
     } else if (sortValue === 'terlama') {
         filtered.sort((a, b) => new Date(a.uploadDate) - new Date(b.uploadDate));
+    } else if (sortValue === 'hari') {
+        filtered.sort((a, b) => {
+            const orderA = getDayOrder(a.scheduleDay);
+            const orderB = getDayOrder(b.scheduleDay);
+            if (orderA === -1 && orderB === -1) return 0;
+            if (orderA === -1) return 1;
+            if (orderB === -1) return -1;
+            return orderA - orderB;
+        });
     }
     
     // Update stats
@@ -163,8 +235,14 @@ function renderAnimeList(animeList) {
     animeListDiv.innerHTML = animeList.map(anime => {
         const status = getStatusText(anime);
         const uploadDate = new Date(anime.uploadDate).toLocaleDateString('id-ID');
+        const isSelected = selectedAnimeIds.has(anime.id);
+        const dayDisplay = anime.scheduleDay ? `📆 Tayang: ${anime.scheduleDay}` : '🏁 Tamat';
+        
         return `
-        <div class="anime-card-admin">
+        <div class="anime-card-admin ${isSelected ? 'selected' : ''}" data-id="${anime.id}">
+            <div class="checkbox-col">
+                <input type="checkbox" class="anime-checkbox" data-id="${anime.id}" ${isSelected ? 'checked' : ''}>
+            </div>
             <div class="anime-card-left">
                 <img src="${anime.cover}" onerror="this.src='https://placehold.co/60x85/1a1a1a/888?text=No+Image'" class="anime-card-img">
                 <div class="anime-card-info">
@@ -174,6 +252,7 @@ function renderAnimeList(animeList) {
                     </h3>
                     <p>⭐ ${anime.rating} | 👁️ ${anime.views} | Eps ${anime.latestEpisode}</p>
                     <p class="upload-date">📅 Upload: ${uploadDate}</p>
+                    <p class="schedule-day-info">${dayDisplay}</p>
                     <p class="anime-genre">${anime.genre.slice(0, 3).join(', ')}</p>
                 </div>
             </div>
@@ -183,13 +262,182 @@ function renderAnimeList(animeList) {
             </div>
         </div>
     `}).join('');
+    
+    // Attach checkbox event listeners
+    document.querySelectorAll('.anime-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', (e) => {
+            const id = e.target.dataset.id;
+            if (e.target.checked) {
+                selectedAnimeIds.add(id);
+            } else {
+                selectedAnimeIds.delete(id);
+            }
+            updateSelectionUI();
+        });
+    });
+    
+    updateSelectionUI();
 }
 
-// Event listeners untuk filter
-if (searchInput) searchInput.addEventListener('input', applyFiltersAndSort);
-if (statusFilter) statusFilter.addEventListener('change', applyFiltersAndSort);
-if (sortFilter) sortFilter.addEventListener('change', applyFiltersAndSort);
+function updateSelectionUI() {
+    const count = selectedAnimeIds.size;
+    if (count > 0) {
+        bulkBar.style.display = 'flex';
+        selectedCountSpan.innerText = count;
+    } else {
+        bulkBar.style.display = 'none';
+    }
+    
+    // Update checkbox di cards
+    document.querySelectorAll('.anime-card-admin').forEach(card => {
+        const id = card.dataset.id;
+        if (selectedAnimeIds.has(id)) {
+            card.classList.add('selected');
+            const cb = card.querySelector('.anime-checkbox');
+            if (cb) cb.checked = true;
+        } else {
+            card.classList.remove('selected');
+            const cb = card.querySelector('.anime-checkbox');
+            if (cb) cb.checked = false;
+        }
+    });
+}
 
+function clearSelection() {
+    selectedAnimeIds.clear();
+    updateSelectionUI();
+}
+
+function selectAll() {
+    const visibleCards = document.querySelectorAll('.anime-card-admin');
+    visibleCards.forEach(card => {
+        const id = card.dataset.id;
+        if (id) selectedAnimeIds.add(id);
+    });
+    updateSelectionUI();
+}
+
+function deselectAll() {
+    selectedAnimeIds.clear();
+    updateSelectionUI();
+}
+
+// ========== BULK OPERATIONS ==========
+async function bulkUpdateStatus() {
+    const newStatus = bulkStatusSelect.value;
+    if (!newStatus) return;
+    
+    if (selectedAnimeIds.size === 0) {
+        showMessage('Pilih anime terlebih dahulu', 'error');
+        return;
+    }
+    
+    if (!confirm(`Ubah status ${selectedAnimeIds.size} anime menjadi "${newStatus}"?`)) return;
+    
+    const updatedAnime = [];
+    for (const anime of allAnimeData) {
+        if (selectedAnimeIds.has(anime.id)) {
+            const updated = { ...anime };
+            if (newStatus === 'tamat') {
+                updated.scheduleDay = "";
+                updated.scheduleStatus = "";
+            } else {
+                if (!updated.scheduleDay) updated.scheduleDay = "Senin";
+                updated.scheduleStatus = newStatus;
+            }
+            updatedAnime.push(updated);
+        } else {
+            updatedAnime.push(anime);
+        }
+    }
+    
+    await saveBulkUpdate(updatedAnime, `Bulk update status ke ${newStatus} untuk ${selectedAnimeIds.size} anime`);
+    bulkStatusSelect.value = "";
+}
+
+async function bulkUpdateDay() {
+    const newDay = bulkDaySelect.value;
+    if (newDay === "") {
+        // Kosongkan (tamat)
+        if (!confirm(`Tandai ${selectedAnimeIds.size} anime sebagai TAMAT?`)) return;
+        
+        const updatedAnime = [];
+        for (const anime of allAnimeData) {
+            if (selectedAnimeIds.has(anime.id)) {
+                const updated = { ...anime };
+                updated.scheduleDay = "";
+                updated.scheduleStatus = "";
+                updatedAnime.push(updated);
+            } else {
+                updatedAnime.push(anime);
+            }
+        }
+        await saveBulkUpdate(updatedAnime, `Bulk set tamat untuk ${selectedAnimeIds.size} anime`);
+    } else if (newDay) {
+        if (!confirm(`Ubah hari tayang ${selectedAnimeIds.size} anime menjadi ${newDay}?`)) return;
+        
+        const updatedAnime = [];
+        for (const anime of allAnimeData) {
+            if (selectedAnimeIds.has(anime.id)) {
+                const updated = { ...anime };
+                updated.scheduleDay = newDay;
+                if (!updated.scheduleStatus) updated.scheduleStatus = "Sudah Tayang";
+                updatedAnime.push(updated);
+            } else {
+                updatedAnime.push(anime);
+            }
+        }
+        await saveBulkUpdate(updatedAnime, `Bulk update hari ke ${newDay} untuk ${selectedAnimeIds.size} anime`);
+    }
+    bulkDaySelect.value = "";
+}
+
+async function bulkDelete() {
+    if (selectedAnimeIds.size === 0) {
+        showMessage('Pilih anime terlebih dahulu', 'error');
+        return;
+    }
+    
+    const animeTitles = allAnimeData
+        .filter(a => selectedAnimeIds.has(a.id))
+        .map(a => a.title)
+        .join(', ');
+    
+    if (!confirm(`⚠️ HAPUS PERMANEN ${selectedAnimeIds.size} anime:\n${animeTitles}\n\nYakin ingin menghapus?`)) return;
+    
+    const updatedAnime = allAnimeData.filter(a => !selectedAnimeIds.has(a.id));
+    await saveBulkUpdate(updatedAnime, `Bulk delete ${selectedAnimeIds.size} anime`);
+    clearSelection();
+}
+
+async function saveBulkUpdate(updatedData, commitMessage) {
+    submitBtn.disabled = true;
+    submitBtn.innerText = 'Menyimpan...';
+    
+    try {
+        // Update satu per satu karena API hanya support single update
+        for (const anime of updatedData) {
+            const existingAnime = allAnimeData.find(a => a.id === anime.id);
+            if (JSON.stringify(existingAnime) !== JSON.stringify(anime)) {
+                await fetch(`/api/anime/${anime.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(anime)
+                });
+            }
+        }
+        
+        showMessage(`✅ Berhasil update ${selectedAnimeIds.size} anime`, 'success');
+        await loadAnimeList();
+    } catch (err) {
+        showMessage(`❌ Gagal: ${err.message}`, 'error');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerText = isEditMode ? '✏️ Update Anime' : '✨ Tambah Anime';
+    }
+}
+
+// ========== SINGLE ANIME OPERATIONS ==========
 window.editAnime = async (id) => {
     try {
         const res = await fetch(`/api/anime/${id}`);
@@ -245,6 +493,7 @@ window.editAnime = async (id) => {
         addModeBtn.classList.add('active');
         listMode.style.display = 'none';
         formMode.style.display = 'block';
+        clearSelection();
     } catch (err) {
         showMessage('Gagal load data anime', 'error');
     }
@@ -266,16 +515,7 @@ window.deleteAnime = async (id) => {
     }
 };
 
-function escapeHtml(str) {
-    if (!str) return '';
-    return str.replace(/[&<>]/g, function(m) {
-        if (m === '&') return '&amp;';
-        if (m === '<') return '&lt;';
-        if (m === '>') return '&gt;';
-        return m;
-    });
-}
-
+// ========== EPISODE MANAGEMENT ==========
 addEpisodeBtn.addEventListener('click', () => {
     episodeCount++;
     const episodeDiv = document.createElement('div');
@@ -309,43 +549,7 @@ function renumberEpisodes() {
     episodeCount = episodes.length;
 }
 
-function getFormData() {
-    const genreRaw = document.getElementById('genre').value;
-    const genre = genreRaw.split(',').map(g => g.trim()).filter(g => g);
-    
-    const episodes = [];
-    document.querySelectorAll('.episode-item').forEach((ep, idx) => {
-        const titleInput = ep.querySelector('.episode-title');
-        const urlInput = ep.querySelector('.episode-url');
-        if (titleInput && urlInput && titleInput.value && urlInput.value) {
-            episodes.push({
-                number: idx + 1,
-                title: titleInput.value,
-                videoUrl: urlInput.value
-            });
-        }
-    });
-    
-    const scheduleDay = document.getElementById('scheduleDay').value;
-    const scheduleStatus = document.getElementById('scheduleStatus').value;
-    
-    return {
-        title: document.getElementById('title').value,
-        cover: document.getElementById('cover').value,
-        synopsis: document.getElementById('synopsis').value,
-        genre: genre,
-        studio: document.getElementById('studio').value,
-        rating: parseFloat(document.getElementById('rating').value),
-        views: document.getElementById('views').value,
-        latestEpisode: parseInt(document.getElementById('latestEpisode').value),
-        uploadDate: document.getElementById('uploadDate').value,
-        scheduleDay: scheduleDay || "",
-        scheduleStatus: scheduleStatus || "",
-        isTrending: document.getElementById('isTrending').checked,
-        episodes: episodes
-    };
-}
-
+// ========== FORM SUBMIT ==========
 previewBtn.addEventListener('click', () => {
     const data = getFormData();
     document.getElementById('previewJson').innerText = JSON.stringify(data, null, 2);
@@ -407,11 +611,34 @@ form.addEventListener('submit', async (e) => {
     }
 });
 
+// ========== UTILITIES ==========
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    });
+}
+
 function showMessage(msg, type) {
     messageDiv.className = `message ${type}`;
     messageDiv.innerText = msg;
     setTimeout(() => messageDiv.className = 'message', 5000);
 }
+
+// ========== EVENT LISTENERS ==========
+searchInput.addEventListener('input', applyFiltersAndSort);
+statusFilter.addEventListener('change', applyFiltersAndSort);
+dayFilter.addEventListener('change', applyFiltersAndSort);
+sortFilter.addEventListener('change', applyFiltersAndSort);
+
+selectAllBtn.addEventListener('click', selectAll);
+deselectAllBtn.addEventListener('click', deselectAll);
+bulkStatusSelect.addEventListener('change', bulkUpdateStatus);
+bulkDaySelect.addEventListener('change', bulkUpdateDay);
+bulkDeleteBtn.addEventListener('click', bulkDelete);
 
 // ========== MAINTENANCE MODE ==========
 async function checkMaintenanceStatus() {
@@ -508,6 +735,6 @@ if (updateCodeBtn) {
     });
 }
 
-// Panggil saat load
+// Initialize
 checkMaintenanceStatus();
 loadAnimeList();
