@@ -6,6 +6,142 @@
     <title>Admin Panel - Kelola Anime</title>
     <link rel="stylesheet" href="/css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Tambahan style untuk status badge dan filter */
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+        .status-tayang {
+            background: #00b89420;
+            color: #00b894;
+            border: 1px solid #00b894;
+        }
+        .status-waiting {
+            background: #f9ca2420;
+            color: #f9ca24;
+            border: 1px solid #f9ca24;
+        }
+        .status-tamat {
+            background: #88888820;
+            color: #888;
+            border: 1px solid #888;
+        }
+        .filter-bar {
+            display: flex;
+            gap: 12px;
+            margin: 16px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #1a1a1a;
+            padding: 8px 16px;
+            border-radius: 30px;
+        }
+        .filter-group label {
+            font-size: 12px;
+            color: #888;
+        }
+        .filter-select, .sort-select {
+            background: #0a0a0a;
+            border: 1px solid #333;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .stats-info {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            padding: 12px 16px;
+            margin: 0 16px 16px;
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+        }
+        .stats-info span {
+            color: #e94560;
+            font-weight: 700;
+        }
+        .anime-card-admin {
+            background: linear-gradient(135deg, #111, #0d0d0d);
+            border-radius: 12px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border: 1px solid #1a1a1a;
+            transition: all 0.2s ease;
+        }
+        .anime-card-admin:hover {
+            border-color: #e94560;
+        }
+        .anime-card-left {
+            display: flex;
+            gap: 12px;
+            flex: 1;
+        }
+        .anime-card-img {
+            width: 60px;
+            height: 85px;
+            border-radius: 8px;
+            object-fit: cover;
+        }
+        .anime-card-info h3 {
+            font-size: 14px;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .anime-card-info p {
+            font-size: 11px;
+            color: #888;
+            margin-bottom: 2px;
+        }
+        .anime-genre {
+            font-size: 10px;
+            color: #e94560;
+        }
+        .anime-card-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .edit-btn, .delete-btn {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s ease;
+        }
+        .edit-btn {
+            background: #f9ca24;
+            color: #1a1a1a;
+        }
+        .delete-btn {
+            background: #e94560;
+            color: white;
+        }
+        .edit-btn:hover, .delete-btn:hover {
+            transform: scale(0.95);
+        }
+        .upload-date {
+            font-size: 10px;
+            color: #00b894;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -22,9 +158,37 @@
 
         <!-- LIST MODE -->
         <div id="listMode" class="list-container">
-            <div class="search-bar">
-                <input type="text" id="searchAnime" placeholder="Cari anime...">
+            <!-- FILTER BAR -->
+            <div class="filter-bar">
+                <div class="filter-group">
+                    <label>🔍 Cari:</label>
+                    <input type="text" id="searchAnime" placeholder="Judul anime..." style="background:#0a0a0a; border:1px solid #333; color:white; padding:6px 12px; border-radius:20px; font-size:12px;">
+                </div>
+                <div class="filter-group">
+                    <label>📅 Status:</label>
+                    <select id="statusFilter" class="filter-select">
+                        <option value="all">Semua Status</option>
+                        <option value="Sudah Tayang">Sudah Tayang</option>
+                        <option value="Menunggu Update">Menunggu Update</option>
+                        <option value="tamat">Tamat</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>📊 Urutkan:</label>
+                    <select id="sortFilter" class="sort-select">
+                        <option value="az">A-Z (Judul)</option>
+                        <option value="za">Z-A (Judul)</option>
+                        <option value="terbaru">Terbaru (Tanggal Upload)</option>
+                        <option value="terlama">Terlama (Tanggal Upload)</option>
+                    </select>
+                </div>
             </div>
+            
+            <!-- STATS INFO -->
+            <div class="stats-info" id="statsInfo">
+                <span>📊 Memuat statistik...</span>
+            </div>
+            
             <div id="animeList" class="anime-list-admin">
                 <div class="loading">Memuat...</div>
             </div>
