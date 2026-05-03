@@ -7,37 +7,74 @@
     <link rel="stylesheet" href="/css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* Tambahan style untuk status badge dan filter */
-        .status-badge {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 20px;
-            font-size: 10px;
-            font-weight: 600;
-            margin-left: 8px;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        .status-tayang {
-            background: #00b89420;
-            color: #00b894;
-            border: 1px solid #00b894;
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0a0a0a;
+            color: #e0e0e0;
         }
-        .status-waiting {
-            background: #f9ca2420;
-            color: #f9ca24;
-            border: 1px solid #f9ca24;
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
         }
-        .status-tamat {
-            background: #88888820;
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            background: linear-gradient(135deg, #fff, #e94560);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            font-size: 28px;
+        }
+        
+        .repo-link a {
+            color: #e94560;
+            text-decoration: none;
+        }
+        
+        .mode-toggle {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+        
+        .mode-btn {
+            background: #1a1a1a;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 30px;
             color: #888;
-            border: 1px solid #888;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
         }
+        
+        .mode-btn.active {
+            background: #e94560;
+            color: white;
+        }
+        
+        /* Filter Bar */
         .filter-bar {
             display: flex;
             gap: 12px;
-            margin: 16px;
+            margin-bottom: 16px;
             flex-wrap: wrap;
             align-items: center;
         }
+        
         .filter-group {
             display: flex;
             align-items: center;
@@ -46,11 +83,13 @@
             padding: 8px 16px;
             border-radius: 30px;
         }
+        
         .filter-group label {
             font-size: 12px;
             color: #888;
         }
-        .filter-select, .sort-select {
+        
+        .filter-select, .sort-select, .day-filter {
             background: #0a0a0a;
             border: 1px solid #333;
             color: white;
@@ -59,44 +98,155 @@
             font-size: 12px;
             cursor: pointer;
         }
+        
+        .search-input {
+            background: #0a0a0a;
+            border: 1px solid #333;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            width: 200px;
+        }
+        
+        /* Stats Info */
         .stats-info {
             background: linear-gradient(135deg, #1a1a2e, #16213e);
             padding: 12px 16px;
-            margin: 0 16px 16px;
+            margin-bottom: 16px;
             border-radius: 12px;
             display: flex;
             justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
             font-size: 12px;
         }
+        
         .stats-info span {
             color: #e94560;
             font-weight: 700;
         }
+        
+        /* Bulk Action Bar */
+        .bulk-bar {
+            background: #1a1a2e;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            border: 1px solid #e94560;
+            animation: slideDown 0.3s ease;
+        }
+        
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .bulk-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .bulk-btn {
+            background: #0a0a0a;
+            border: 1px solid #333;
+            padding: 6px 12px;
+            border-radius: 20px;
+            color: #e0e0e0;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .bulk-btn:hover {
+            border-color: #e94560;
+        }
+        
+        .bulk-btn-primary {
+            background: #e94560;
+            border-color: #e94560;
+            color: white;
+        }
+        
+        .bulk-btn-danger {
+            background: #e94560;
+            border-color: #e94560;
+            color: white;
+        }
+        
+        .select-all-btn {
+            background: #0a0a0a;
+            border: 1px solid #333;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 11px;
+            cursor: pointer;
+        }
+        
+        /* Anime Card */
+        .anime-list-admin {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
         .anime-card-admin {
             background: linear-gradient(135deg, #111, #0d0d0d);
             border-radius: 12px;
-            margin-bottom: 12px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             padding: 12px;
             border: 1px solid #1a1a1a;
             transition: all 0.2s ease;
+            position: relative;
         }
+        
         .anime-card-admin:hover {
             border-color: #e94560;
         }
+        
+        .anime-card-admin.selected {
+            border-color: #e94560;
+            background: #1a1a2e;
+        }
+        
+        .checkbox-col {
+            margin-right: 12px;
+        }
+        
+        .checkbox-col input {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            accent-color: #e94560;
+        }
+        
         .anime-card-left {
             display: flex;
             gap: 12px;
             flex: 1;
         }
+        
         .anime-card-img {
             width: 60px;
             height: 85px;
             border-radius: 8px;
             object-fit: cover;
         }
+        
         .anime-card-info h3 {
             font-size: 14px;
             margin-bottom: 4px;
@@ -105,19 +255,33 @@
             flex-wrap: wrap;
             gap: 6px;
         }
+        
         .anime-card-info p {
             font-size: 11px;
             color: #888;
             margin-bottom: 2px;
         }
+        
         .anime-genre {
             font-size: 10px;
             color: #e94560;
         }
+        
+        .upload-date {
+            font-size: 10px;
+            color: #00b894;
+        }
+        
+        .schedule-day-info {
+            font-size: 10px;
+            color: #f9ca24;
+        }
+        
         .anime-card-actions {
             display: flex;
             gap: 8px;
         }
+        
         .edit-btn, .delete-btn {
             padding: 6px 12px;
             border-radius: 6px;
@@ -126,20 +290,210 @@
             border: none;
             transition: all 0.2s ease;
         }
+        
         .edit-btn {
             background: #f9ca24;
             color: #1a1a1a;
         }
+        
         .delete-btn {
             background: #e94560;
             color: white;
         }
-        .edit-btn:hover, .delete-btn:hover {
-            transform: scale(0.95);
-        }
-        .upload-date {
+        
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 20px;
             font-size: 10px;
+            font-weight: 600;
+        }
+        
+        .status-tayang {
+            background: #00b89420;
             color: #00b894;
+            border: 1px solid #00b894;
+        }
+        
+        .status-waiting {
+            background: #f9ca2420;
+            color: #f9ca24;
+            border: 1px solid #f9ca24;
+        }
+        
+        .status-tamat {
+            background: #88888820;
+            color: #888;
+            border: 1px solid #888;
+        }
+        
+        /* Form Styles */
+        .form-container {
+            background: linear-gradient(135deg, #111, #0d0d0d);
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid #1a1a1a;
+        }
+        
+        .form-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .form-section {
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #1a1a1a;
+        }
+        
+        .form-section h3 {
+            margin-bottom: 16px;
+            color: #e94560;
+            font-size: 16px;
+        }
+        
+        .form-group {
+            margin-bottom: 12px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 12px;
+            color: #888;
+        }
+        
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%;
+            padding: 10px;
+            background: #1a1a1a;
+            border: 1px solid #222;
+            border-radius: 8px;
+            color: white;
+            font-size: 13px;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        
+        .episode-item {
+            background: #1a1a1a;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+        
+        .episode-item h4 {
+            margin-bottom: 10px;
+            font-size: 13px;
+        }
+        
+        .form-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #e94560, #ff6b6b);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 30px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        .btn-secondary {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            padding: 12px 24px;
+            border-radius: 30px;
+            color: #e0e0e0;
+            cursor: pointer;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+        
+        .message {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            z-index: 1000;
+            animation: slideIn 0.3s ease;
+        }
+        
+        .message.success {
+            background: #00b894;
+            color: white;
+        }
+        
+        .message.error {
+            background: #e94560;
+            color: white;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            align-items: center;
+            justify-content: center;
+            z-index: 1001;
+        }
+        
+        .modal-content {
+            background: #111;
+            padding: 20px;
+            border-radius: 12px;
+            max-width: 90%;
+            max-height: 80%;
+            overflow: auto;
+        }
+        
+        .close {
+            float: right;
+            cursor: pointer;
+            font-size: 24px;
+        }
+        
+        @media (max-width: 768px) {
+            .filter-bar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            .bulk-actions {
+                flex-wrap: wrap;
+            }
         }
     </style>
 </head>
@@ -162,7 +516,7 @@
             <div class="filter-bar">
                 <div class="filter-group">
                     <label>🔍 Cari:</label>
-                    <input type="text" id="searchAnime" placeholder="Judul anime..." style="background:#0a0a0a; border:1px solid #333; color:white; padding:6px 12px; border-radius:20px; font-size:12px;">
+                    <input type="text" id="searchAnime" class="search-input" placeholder="Judul anime...">
                 </div>
                 <div class="filter-group">
                     <label>📅 Status:</label>
@@ -174,12 +528,26 @@
                     </select>
                 </div>
                 <div class="filter-group">
+                    <label>📆 Hari:</label>
+                    <select id="dayFilter" class="day-filter">
+                        <option value="all">Semua Hari</option>
+                        <option value="Senin">Senin</option>
+                        <option value="Selasa">Selasa</option>
+                        <option value="Rabu">Rabu</option>
+                        <option value="Kamis">Kamis</option>
+                        <option value="Jumat">Jumat</option>
+                        <option value="Sabtu">Sabtu</option>
+                        <option value="Minggu">Minggu</option>
+                    </select>
+                </div>
+                <div class="filter-group">
                     <label>📊 Urutkan:</label>
                     <select id="sortFilter" class="sort-select">
                         <option value="az">A-Z (Judul)</option>
                         <option value="za">Z-A (Judul)</option>
                         <option value="terbaru">Terbaru (Tanggal Upload)</option>
                         <option value="terlama">Terlama (Tanggal Upload)</option>
+                        <option value="hari">Berdasarkan Hari Tayang</option>
                     </select>
                 </div>
             </div>
@@ -187,6 +555,35 @@
             <!-- STATS INFO -->
             <div class="stats-info" id="statsInfo">
                 <span>📊 Memuat statistik...</span>
+            </div>
+            
+            <!-- BULK ACTION BAR (hidden by default) -->
+            <div id="bulkBar" class="bulk-bar" style="display: none;">
+                <div>
+                    <span id="selectedCount">0</span> anime dipilih
+                    <button id="selectAllBtn" class="select-all-btn">✅ Pilih Semua</button>
+                    <button id="deselectAllBtn" class="select-all-btn">❌ Batal Pilih</button>
+                </div>
+                <div class="bulk-actions">
+                    <select id="bulkStatusSelect" class="filter-select">
+                        <option value="">Ubah Status...</option>
+                        <option value="Sudah Tayang">✅ Sudah Tayang</option>
+                        <option value="Menunggu Update">⏳ Menunggu Update</option>
+                        <option value="tamat">🏁 Tamat</option>
+                    </select>
+                    <select id="bulkDaySelect" class="filter-select">
+                        <option value="">Ubah Hari Tayang...</option>
+                        <option value="Senin">Senin</option>
+                        <option value="Selasa">Selasa</option>
+                        <option value="Rabu">Rabu</option>
+                        <option value="Kamis">Kamis</option>
+                        <option value="Jumat">Jumat</option>
+                        <option value="Sabtu">Sabtu</option>
+                        <option value="Minggu">Minggu</option>
+                        <option value="">Kosongkan (Tamat)</option>
+                    </select>
+                    <button id="bulkDeleteBtn" class="bulk-btn-danger">🗑️ Hapus Terpilih</button>
+                </div>
             </div>
             
             <div id="animeList" class="anime-list-admin">
