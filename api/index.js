@@ -18,16 +18,15 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, '../public')));
 
 // ========== KONFIGURASI ==========
-// RAW URL untuk membaca all-anime.json (dari repository DbAnime)
-const ANIME_RAW_URL = process.env.ANIME_RAW_URL || 'https://raw.githubusercontent.com/DeveloperrCaii/DbAnime/refs/heads/main/all-anime.json';
-
-// GitHub API untuk menulis ke all-anime.json (perlu PAT)
+// Repository untuk all-anime.json
 const ANIME_REPO = process.env.ANIME_REPO || 'DeveloperrCaii/DbAnime';
 const ANIME_FILE_PATH = process.env.ANIME_FILE_PATH || 'all-anime.json';
-const ANIME_API_URL = `https://api.github.com/repos/${ANIME_REPO}/contents/${ANIME_FILE_PATH}`;
+// GITHUB API URL untuk READ (bukan RAW)
+const ANIME_API_READ_URL = `https://api.github.com/repos/${ANIME_REPO}/contents/${ANIME_FILE_PATH}`;
+// GITHUB API URL untuk WRITE (sama)
+const ANIME_API_WRITE_URL = `https://api.github.com/repos/${ANIME_REPO}/contents/${ANIME_FILE_PATH}`;
 
-// Maintenance.json (di repository Streaming)
-const MAINTENANCE_RAW_URL = process.env.MAINTENANCE_RAW_URL || 'https://raw.githubusercontent.com/DeveloperrCaii/Streaming/refs/heads/main/frontend/data/maintenance.json';
+// Repository untuk maintenance.json
 const MAINTENANCE_REPO = process.env.MAINTENANCE_REPO || 'DeveloperrCaii/Streaming';
 const MAINTENANCE_FILE_PATH = process.env.MAINTENANCE_FILE_PATH || 'frontend/data/maintenance.json';
 const MAINTENANCE_API_URL = `https://api.github.com/repos/${MAINTENANCE_REPO}/contents/${MAINTENANCE_FILE_PATH}`;
@@ -39,26 +38,49 @@ const githubHeaders = {
     Accept: 'application/vnd.github.v3+json'
 };
 
+// Cache untuk mengurangi request (opsional)
+let animeCache = null;
+let animeCacheTime = 0;
+const CACHE_TTL = 3000; // 3 detik cache
+
 // ========== FUNCTIONS FOR ALL-ANIME ==========
-// BACA: menggunakan RAW URL (cepat, tanpa token untuk public repo)
-async function getAnimeFileRead() {
+// BACA via GitHub API (langsung, tanpa cache CDN)
+async function getAnimeFileRead(forceFresh = false) {
+    const now = Date.now();
+    if (!forceFresh && animeCache && (now - animeCacheTime) < CACHE_TTL) {
+        console.log('📦 Menggunakan cache anime (3 detik)');
+        return animeCache;
+    }
+    
     try {
-        console.log('📡 Membaca all-anime.json dari RAW URL:', ANIME_RAW_URL);
-        const res = await axios.get(ANIME_RAW_URL);
-        return {
-            content: JSON.stringify(res.data, null, 2),
-            data: res.data
-        };
+        console.log('📡 Mengambil dari GitHub API:', ANIME_API_READ_URL);
+        
+        const res = await axios.get(ANIME_API_READ_URL, { 
+            headers: githubHeaders,
+            // Header untuk mencegah cache
+            'Cache-Control': 'no-cache, no-store, must-revalidate'
+        });
+        
+        // Decode content dari base64
+        const content = Buffer.from(res.data.content, 'base64').toString('utf8');
+        const data = JSON.parse(content);
+        
+        animeCache = { data: data };
+        animeCacheTime = now;
+        
+        console.log(`✅ Berhasil mengambil ${data.length} anime dari GitHub API`);
+        return { data: data };
     } catch (err) {
-        console.error('❌ Gagal baca all-anime.json:', err.message);
+        console.error('❌ Gagal baca dari GitHub API:', err.message);
+        if (animeCache) return animeCache;
         throw new Error('Gagal mengambil data anime');
     }
 }
 
-// TULIS: menggunakan GitHub API (perlu PAT)
+// TULIS via GitHub API
 async function getAnimeFileForWrite() {
     try {
-        const res = await axios.get(ANIME_API_URL, { headers: githubHeaders });
+        const res = await axios.get(ANIME_API_WRITE_URL, { headers: githubHeaders });
         return {
             content: Buffer.from(res.data.content, 'base64').toString('utf8'),
             sha: res.data.sha
@@ -77,23 +99,29 @@ async function updateAnimeFile(content, sha, commitMessage) {
         sha: sha,
         branch: 'main'
     };
-    const res = await axios.put(ANIME_API_URL, payload, { headers: githubHeaders });
+    const res = await axios.put(ANIME_API_WRITE_URL, payload, { headers: githubHeaders });
+    
+    // Clear cache setelah update
+    animeCache = null;
+    animeCacheTime = 0;
+    
+    console.log('✅ File berhasil diupdate ke GitHub');
     return res.data;
 }
 
 // ========== FUNCTIONS FOR MAINTENANCE ==========
-// BACA: menggunakan RAW URL
 async function getMaintenanceFileRead() {
     try {
-        const res = await axios.get(MAINTENANCE_RAW_URL);
-        return { data: res.data };
+        const res = await axios.get(MAINTENANCE_API_URL, { headers: githubHeaders });
+        const content = Buffer.from(res.data.content, 'base64').toString('utf8');
+        const json = JSON.parse(content);
+        return { data: json };
     } catch (err) {
         console.log('⚠️ maintenance.json belum ada, pakai default');
         return { data: { maintenance_mode: false, access_code: 'LanzAdminAnime' } };
     }
 }
 
-// TULIS: menggunakan GitHub API
 async function getMaintenanceFileForWrite() {
     try {
         const res = await axios.get(MAINTENANCE_API_URL, { headers: githubHeaders });
@@ -120,17 +148,25 @@ async function updateMaintenanceFile(data, sha) {
 
 // ========== ENDPOINTS ==========
 
-// GET semua anime (baca dari RAW URL)
+// GET semua anime (via GitHub API, realtime)
 app.get('/api/anime', async (req, res) => {
     try {
-        const { data } = await getAnimeFileRead();
+        const forceFresh = req.query.fresh === 'true';
+        const { data } = await getAnimeFileRead(forceFresh);
+        
+        // Header anti-cache untuk browser
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        
         res.json(data);
     } catch (err) {
+        console.error('Error GET /api/anime:', err.message);
         res.status(500).json({ error: err.message });
     }
 });
 
-// GET anime by ID (baca dari RAW URL)
+// GET anime by ID
 app.get('/api/anime/:id', async (req, res) => {
     try {
         const { data } = await getAnimeFileRead();
@@ -142,7 +178,7 @@ app.get('/api/anime/:id', async (req, res) => {
     }
 });
 
-// POST tambah anime (write ke GitHub API)
+// POST tambah anime
 app.post('/api/anime', async (req, res) => {
     try {
         const newAnime = req.body;
@@ -173,7 +209,7 @@ app.post('/api/anime', async (req, res) => {
     }
 });
 
-// PUT edit anime (write ke GitHub API)
+// PUT edit anime
 app.put('/api/anime/:id', async (req, res) => {
     try {
         const animeId = req.params.id;
@@ -200,13 +236,14 @@ app.put('/api/anime/:id', async (req, res) => {
         animeList[index] = updatedAnime;
         
         await updateAnimeFile(JSON.stringify(animeList, null, 2), sha, `Edit anime: ${updatedAnime.title}`);
+        
         res.json({ success: true, message: 'Anime berhasil diupdate' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// DELETE anime (write ke GitHub API)
+// DELETE anime
 app.delete('/api/anime/:id', async (req, res) => {
     try {
         const animeId = req.params.id;
@@ -226,7 +263,6 @@ app.delete('/api/anime/:id', async (req, res) => {
 
 // ========== MAINTENANCE MODE ENDPOINTS ==========
 
-// GET status maintenance (baca dari RAW URL)
 app.get('/api/maintenance/status', async (req, res) => {
     try {
         const { data } = await getMaintenanceFileRead();
@@ -239,7 +275,6 @@ app.get('/api/maintenance/status', async (req, res) => {
     }
 });
 
-// POST toggle maintenance (write ke GitHub API)
 app.post('/api/maintenance/toggle', async (req, res) => {
     try {
         const { action, accessCode } = req.body;
@@ -258,7 +293,6 @@ app.post('/api/maintenance/toggle', async (req, res) => {
     }
 });
 
-// POST update access code (write ke GitHub API)
 app.post('/api/maintenance/update-code', async (req, res) => {
     try {
         const { oldCode, newCode } = req.body;
